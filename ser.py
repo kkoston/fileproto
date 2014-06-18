@@ -11,7 +11,8 @@ proto = None
 cur_dir = {}
 
 def make_packet(ptype, pdata):
-    return {'type': ptype, 'data': pdata}
+    p = {'type': ptype, 'data': pdata}
+    return msgpack.packb(p)
 
 def hello(params):
     print 'Client connected'
@@ -19,17 +20,51 @@ def hello(params):
 def list_files(params):
     global cur_dir
     packet = make_packet('ls_r', os.listdir(cur_dir[current_thread()]))
-    packet_b = msgpack.packb(packet)
-    proto.send(packet_b) 
+    proto.send(packet) 
     
+def make_dirs(params):
+    global cur_dir
+    d = cur_dir[current_thread()]
+    nd = params[0]
+    
+    if nd[0] != '/':
+        nd = os.path.normpath(os.path.join(d, nd))
+    
+    if not os.path.exists(nd):
+        os.makedirs(nd)
+        packet = make_packet('md_r', 'OK')
+    else:
+        packet = make_packet('md_r', 'dir exists')   
+    
+    proto.send(packet)    
+        
 def change_dir(params):
     global cur_dir
-    cur_dir[current_thread()] = params[0]    
+    d = cur_dir[current_thread()]
+    nd = params[0]
+    
+    if nd[0] != '/':
+        nd = os.path.normpath(os.path.join(d, nd))
+    
+    if not os.path.exists(nd):
+        print "no dir"
+        packet = make_packet('cd_r', 'no dir')
+        proto.send(packet)
+        print "error packet sent "
+        return False
+    
+    cur_dir[current_thread()] = nd
+    
+    print nd
+    packet = make_packet('cd_r', 'OK')
+    proto.send(packet)    
+    return True  
 
 COMMANDS = {
     'ls': list_files,
     'hello': hello,
-    'cd': change_dir
+    'cd': change_dir,
+    'md': make_dirs
 }
 
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

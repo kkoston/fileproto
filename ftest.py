@@ -10,6 +10,15 @@ def make_packet(ptype, pdata):
     p = {'type': ptype, 'data': pdata}
     return msgpack.packb(p)
 
+def recv():
+    resp_b = proto.recv()
+    resp = msgpack.unpackb(resp_b)
+    print "recvd", resp
+    return resp
+    
+def send(packet):
+    proto.send(packet)
+
 def connect(params):
     global proto
     
@@ -24,16 +33,13 @@ def connect(params):
     proto = Proto(s)
     
     packet = make_packet('hello', None)
-    proto.send(packet)    
+    send(packet)  
 
 def list_files(params):
     packet = make_packet('ls', params)
-    proto.send(packet)
+    send(packet)    
+    resp = recv()
     
-    resp_b = proto.recv()
-    resp = msgpack.unpackb(resp_b)
-    
-    print resp
     return resp
 
 def get_files(params):
@@ -43,11 +49,14 @@ def put_files(params):
     pass
     
 def make_dirs(params):
-    pass
+    packet = make_packet('md', params)
+    send(packet)
+    resp = recv()
 
 def change_dir(params):
     packet = make_packet('cd', params)
-    proto.send(packet)
+    send(packet)
+    resp = recv()
     
 def remove_files(params):
     pass
@@ -65,6 +74,9 @@ COMMANDS = {
     'cd': change_dir,
     'exit': exit
 }
+
+if sys.argv[1] == 'connect':
+    connect(sys.argv[2:])
 
 while True:
     cmd_line = raw_input('> ')
